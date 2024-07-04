@@ -1,0 +1,435 @@
+---
+title: "Assesssment 1 - COVID-19 impact on digital learning"
+author: "Nguyen Quoc Trung / Student ID: 48299405"
+date: "2024-04-12"
+output: word_document
+---
+```{r setup, include=FALSE}
+# Import relevant library
+library(zoo)
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(lubridate)
+
+library(ggplot2)
+library(tinytex)
+
+
+```
+During the COVID - 19 pandemic, more than 56 million students in the United witnessed the interruption in their education. In the spring of 2020, the US government decided to shut educational institutes to stop the virus from widely spreading. Schools and teachers started teaching students remotely by adapting several online tools and digital platforms. In other words, online teaching became a necessity and widely adopted by educational institutions during the lockdown. Until today, concerns of the exacerbating digital divide and long-term learning loss among America’s most vulnerable learners continue to grow.
+
+This report attempts to explore digital learning trends by analyzing a dataset from various U.S. districts to e and how students use different tools and platforms. To be more specify, the relationship between engagement in digital learning for different states will be conducted to work on this matter.
+
+## 1. Data Cleaning and Wrangling
+
+## a. Importing data files: 
+
+In the very first stage, this report is working on importing the different datasets into the data frame. The construction of each files is following on the below observation on the raw data file:. Firstly, the districts data file is imported to the working workspace.
+
+```{r import-district, include= TRUE}
+
+districts <- read_csv(file = 'districts_info.csv') # import the district file to working space in R_studio
+
+head(districts) # See the first few lines of the districts file
+
+colSums(is.na(districts)) # check the NA for each column in the data file
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Then, the products file is imported.
+
+```{r import-product, include= TRUE}
+products <- read_csv(file = "products_info.csv") # import the products file
+
+head(products) # See the first few lines of the products file
+
+colSums(is.na(products)) # check the NA for each column in the data file
+
+# After review, the products file needs to change the column name from LP_ID to lp_id to match the format used in five district files within the engagement data. This reformatting is crucial for merging the files correctly.
+
+names(products)[names(products) == "LP ID"] <- "lp_id"
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Lastly in this stage, each file in the folder represents data from individual schools, and the engagement data are aggregated at the school district level will be imported. Moreover, it has been observed that for effective merging of datasets, a 'district_id' column must be added to each school's data file. This addition provides a corresponding district identifier for each school, ensuring that data can be accurately aligned and combined across the district level.
+
+```{r import-engagement data, include=TRUE}
+
+df1000 <- read_csv(file = "1000.csv") # Import data file district 1000
+df1000$lp_id <- as.numeric(df1000$lp_id) # change lp_id 
+engage1 <- mutate(df1000, district_id = 1000) # add the district_identifier
+engage1 # re name the data file  to engage 1
+
+df1039 <- read_csv(file = "1039.csv") # Import data file district 1039
+df1039$lp_id <- as.numeric(df1039$lp_id) # change lp_id to numerical:
+engage2 <- mutate(df1039, district_id = 1039) # add the district_identifier
+engage2 # re name the data file to engage 2
+
+df1044 <- read_csv(file = "1044.csv") # Import data file district 1044
+df1044$lp_id <- as.numeric(df1044$lp_id) # change lp_id 
+engage3 <- mutate(df1044, district_id = 1044) # add the district_identifier
+engage3 # re name the data file  to engage 3
+
+df1052 <- read_csv(file = "1052.csv") # Import data file district 1052
+df1052$lp_id <- as.numeric(df1052$lp_id) # change lp_id 
+engage4 <- mutate(df1052, district_id = 1052) # add the district_identifier
+engage4 # re name the data file  to engage 4
+
+df1131 <- read_csv(file = "1131.csv") # Import data file district 1131
+df1131$lp_id <- as.numeric(df1131$lp_id) # change lp_id 
+engage5 <- mutate(df1131, district_id = 1131) # add the district_identifier
+engage5 # re name the data file  to engage 5
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+After importing the whole datafiles, it can be seen that there are 230 districts across US in this data set in 2020. Moreover, it is reported that there are 372 most used products or tools for digital learning. It can be seen that products and districts files has a missing values (values). Specifically, for the districtts files, there are several values are marked with "NaN" suggesting that the annoymization of the dataset is maximized.
+
+## b. Merging data:
+
+In the next stage of this report, we will first merge all school files from each district in the engagement data to form a single dataframe. Subsequently, we will merge this with the relevant products and district data, using 'district_id' from the district files and 'lp_id' from the product files. This will create a final, comprehensive dataset that will be used to analyze and visualize how engagement in learning varies across different states, tools, and digital platforms.
+
+```{r merging, include=TRUE}
+engagement <- bind_rows(engage1,engage2,engage3,engage4,engage5) # create the data frame from files in engagement data
+
+merged <- merge(engagement, products, by = "lp_id", all.x = TRUE) # Merge the 'engagement' data frame with products data following lp_id
+
+final_merge <- merge(merged, districts, by = "district_id", all.x = TRUE) # Merge with districts data following district_id
+
+colSums(is.na(final_merge)) ## Check NA in each column
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## c. Data cleansing & wrangling:
+
+Once the data files are merged, the data cleansing and Wrangling is conducted to ensure the accuracy and usability of the final data frame. Once the above steps are performed, we can get to visualize and analyze the data to get the insight from the investigated data sets.
+
+```{r cleaning and wrangling, include=TRUE}
+#CLEANING:
+final_merge <- final_merge %>% drop_na(`Product Name`) # drop NA values in column Product Name
+
+final_merge <- final_merge %>% # Change this values into NA for cleaning
+  mutate(state = replace (state, state
+                          == "don\x92t know", NA))
+final_merge <- final_merge %>%
+  mutate(state = replace (state, state
+                          == "whereabouts", NA))
+final_merge <- final_merge %>%
+  mutate(state = replace (state, state
+                          == "NaN", NA))
+
+## Re format percentage in column 'pct_black/hispanic':
+final_merge <- final_merge %>%
+  mutate (
+    `pct_black/hispanic` = case_when(
+      `pct_black/hispanic` == "[0, 0.2[" ~ "0 - 20%",
+      `pct_black/hispanic` == "[0.2, 0.4[" ~ "20% - 40%",
+      `pct_black/hispanic` == "[0.4, 0.6[" ~ "40% - 60%",
+      `pct_black/hispanic` == "[0.6, 0.8[" ~ "60% - 80%",
+      `pct_black/hispanic` == "[0.8, 1[" ~ "80% - 100%"
+    )
+  )
+## Re format percentage in column 'pct_free/reduced':
+final_merge <- final_merge %>%
+  mutate (
+    `pct_free/reduced` = case_when(
+      `pct_free/reduced` == "[0, 0.2[" ~ "0 - 20%",
+      `pct_free/reduced` == "[0.2, 0.4[" ~ "20% - 40%",
+      `pct_free/reduced` == "[0.4, 0.6[" ~ "40% - 60%",
+      `pct_free/reduced` == "[0.6, 0.8[" ~ "60% - 80%",
+      `pct_free/reduced` == "[0.8, 1[" ~ "80% - 100%"
+    )
+  )
+## Re format percentage in column 'county_connection_ratio':
+final_merge <- final_merge %>%
+  mutate (
+    county_connections_ratio = case_when(
+      county_connections_ratio == "[0.18, 1[" ~ "<1",
+      county_connections_ratio == "[1, 2[" ~ ">1",
+    )
+  )
+## Re format percentage in column 'pp_total_raw':
+final_merge <- final_merge %>%
+  mutate(
+    pp_total_raw = case_when(
+      pp_total_raw == "[10000, 12000[" ~ "10-12",
+      pp_total_raw == "[12000, 14000[" ~ "12-14",
+      pp_total_raw == "[14000, 16000[" ~ "14-16",
+      pp_total_raw == "[16000, 18000[" ~ "16-18",
+      pp_total_raw == "[18000, 20000[" ~ "18-20",
+      pp_total_raw == "[20000, 22000[" ~ "20-22",
+      pp_total_raw == "[22000, 24000[" ~ "22-24",
+      pp_total_raw == "[32000, 34000[" ~ "32-34",
+      pp_total_raw == "[4000, 6000[" ~ "4-6",
+      pp_total_raw == "[6000, 8000[" ~ "6-8",
+      pp_total_raw == "[8000, 10000[" ~ "8-10",
+      TRUE ~ pp_total_raw
+    )
+  )
+
+## Re format values in column 'Sector(s)':
+unique(final_merge$`Sector(s)`)
+final_merge <- final_merge %>%
+  mutate(`Sector(s)` = replace (`Sector(s)`, `Sector(s)`
+                                == "PreK-122", "PreK-12"))
+final_merge <- final_merge %>%
+  mutate(`Sector(s)` = replace (`Sector(s)`, `Sector(s)`
+                                == "PPreK-12", "PreK-12"))
+final_merge <- final_merge %>%
+  mutate(`Sector(s)` = replace (`Sector(s)`, `Sector(s)`
+                                == "PreK-112", "PreK-12"))
+final_merge <- final_merge %>%
+  mutate(`Sector(s)` = replace (`Sector(s)`, `Sector(s)`
+                                == "pre kindergarten to yr 12", "PreK-12"))
+final_merge <- final_merge %>%
+  mutate(`Sector(s)` = replace (`Sector(s)`, `Sector(s)`
+                                == "pre kindergarten to year 12", "PreK-12"))
+
+
+# Re format values in column 'time'/ make sure all the time in this data set is during 2020:
+final_merge <- final_merge %>%
+  mutate(
+    time = case_when(
+      time == "1/01/2022" ~ "1/01/2020",
+      time == "31/12/1020" ~ "31/12/2020",
+      time == "1/1/2044" ~ "1/01/2020",
+      time == "1/01/2050" ~ "1/01/2020",
+      time == "1/01/2033" ~ "1/01/2020",
+      time == "2/01/2050" ~ "2/01/2020",
+      TRUE ~ time
+    )
+  )
+
+head(final_merge) # The few lines of the data frame
+summary(final_merge)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\newpage
+
+## 2. Data Visualisation:
+
+## 2.1. Products/ Tools most used across states:
+
+a. Most used products among students across states:
+
+To illustrate the most used products in 2020, a bar graph is particularly suitable as it offers a clear and direct comparison of the data. In this dataset, the products or tools frequently used in digital learning will each be represented by individual bars, providing a straightforward comparison of the most popular tools.
+
+```{r Top used products, simple-plot, echo=FALSE}
+# Step 1: Count the frequency of each product
+product_counts <- final_merge %>%
+  group_by(`Product Name`) %>%  # Group by "Product Name" column
+  summarise(count = n()) %>% # Count occurrences in each group
+  arrange(desc(count)) %>% # Order by count in descending order
+  head(10)  # Select the top 10 rows (most used products)
+
+# Step 2: Create the bar chart
+ggplot(product_counts, aes(y = count, x = `Product Name`)) +
+  geom_bar(stat = "identity") +  # Create bars with height representing count
+  geom_bar(col = "green4", stat = "identity", width = 0.85, alpha = 0.9) +
+  labs(title = "Top 10 Most used products/ tools in 2020",
+       y = "Frequency",
+       x = "Product Name") +  # Add labels and title
+  coord_flip()  # Flip the axes to display product names on the y-axis
+```
+
+b. Top providers in digital learning across US:
+
+The bar graph chosen here effectively highlights the leading company in supplying digital tools and platforms for educational purposes across five districts in the U.S. It aims to showcase the comparative usage of digital tools provided by different companies for online learning. Additionally, the graph reveals which company offers the highest number of products that are widely adopted by students in these districts.
+
+```{r Top providers, simple-plot, echo=FALSE}
+# Step 1: count the top provider based on it frequencies:
+top_providers <- final_merge %>% drop_na(`Provider/Company Name`) # drop NA value in Provider column
+top_providers <- top_providers %>% 
+  count(`Provider/Company Name`) %>%
+  arrange(desc(n)) %>%
+  top_n(10, n) # count the top 10 companies that have the highest frequencies
+
+# Step 2: draw a bar chart based on the top_providers data frame
+ggplot(top_providers, aes(x = reorder(`Provider/Company Name`, n), y = n, fill = `Provider/Company Name`)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  coord_flip() +  # This flips the axis so the labels are readable
+  labs(x = "Provider/ Company Name", y = "Count", title = "Top 10 Providers among US in 2020") +
+  theme(legend.position = "none")  # Remove legend since it's redundant
+```
+\newpage
+
+## 2.2. Student engagement and digital learning access:   
+
+a. Monthly percentage of students accessing online learning tools:
+
+The following visualization represents the average mean percentage of students accessing digital learning tools. Then, a line graph tends to be the most optimal graph excellently displays trends over time. This type of graph presents a clear visual tracking of student assessment with digital tools throughout a specific time (during 2020). Besides, line graphs excel in showing increases, decreases, and plateaus, making it efficient to identify patterns or significant changes at a glance. This is crucial for companies providing digital platforms for online learning to understand temporal variations in student engagement, helping them to pinpoint times of higher or lower usage and adjust strategies or resources accordingly.
+
+```{r monthly pct access, simple-plot, echo=FALSE}
+## MEAN of pct_access during months in 2020:
+# Step 1: Convert the format in column 'time'
+final_merge <- final_merge %>% drop_na(`time`)
+final_merge$time <- as.Date(final_merge$time, format = "%d/%m/%Y")
+final_merge$month <- format(final_merge$time, "%b") # convert the time to display only month 
+
+# Step 2: calculate the average pct_access
+monthly_avg_access <- final_merge %>%
+  group_by(month) %>%
+  summarise(mean_pct_access = mean(pct_access, na.rm = TRUE)) %>%
+  mutate(month = factor(month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))) %>% # for visualization, to clearly display months
+  arrange(month)  # Arrange by month assuming you want it in calendar order
+
+# Step 3: draw a line graph
+ggplot(monthly_avg_access, aes(x = month, y = mean_pct_access, group = 1)) +
+  geom_rect(aes(xmin = which(levels(month) == "Jun"), xmax = which(levels(month) == "Aug"), ymin = -Inf, ymax = Inf), # highlight the summer break period
+            fill = "#f0e6f7", alpha = 0.3, inherit.aes = FALSE) + # Pastel highlight for Summer Break, behind the line
+  geom_line(color = "skyblue") + # Draw the line graph on top of the highlight
+  geom_point(color = "yellow3") + # Add points for each data point on top of the highlight
+  scale_x_discrete(limits = levels(month)) + # Ensure the x-axis is ordered correctly
+  annotate("text", x = which(levels(month) == "Jun"), y = max(monthly_avg_access$mean_pct_access, na.rm = TRUE) * 0.3, label = "Summer Break", size = 10, fontface = "italic") +
+  theme_minimal() +
+  labs(x = "Month", y = "Mean pct_access", title = "Monthly mean pct_access of students in 2020") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Improve readability of month labels
+
+```
+
+
+b. Monthly engagement of students with digital learning tools:
+
+The visualization below displays the average engagement index of students with digital learning tools across districts using a line graph, similar to the earlier student access percentage. This format effectively shows trends and changes over time.
+
+```{r engagement index, simple-plot, echo=FALSE}
+## MEAN of engagement index during month in 2020:
+# Step 1: calculate the mean engagement_index of students monthly
+
+monthly_avg_engagement <- final_merge %>%
+  group_by(month) %>%
+  summarise(mean_engagement_index = mean(engagement_index, na.rm = TRUE)) %>%
+  mutate(month = factor(month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))) %>%
+  arrange(month)  # Arrange by month in calendar order
+
+# Step 2: draw a line graph
+ggplot(monthly_avg_engagement, aes(x = month, y = mean_engagement_index, group = 1)) +
+  geom_rect(aes(xmin = which(levels(month) == "Jun"), xmax = which(levels(month) == "Aug"), ymin = -Inf, ymax = Inf), # highlight summer break period
+            fill = "#f0e6f7", alpha = 0.3, inherit.aes = FALSE) + # Pastel highlight for Summer Break, behind the line
+  geom_line(color = "skyblue") + # Draw the line graph on top of the highlight
+  geom_point(color = "yellow3") + # Add points for each data point on top of the highlight
+  scale_x_discrete(limits = levels(month)) + # Ensure the x-axis is ordered correctly
+  annotate("text", x = which(levels(month) == "Jun"), y = max(monthly_avg_engagement$mean_engagement_index, na.rm = TRUE) * 0.9, label = "Summer Break", size = 4, fontface = "italic") +
+  theme_minimal() +
+  labs(x = "Month", y = "Mean Engagement Index", title = "Monthly average engagement index in 2020") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Improve readability of month labels
+```
+
+
+# 2.3. Engagement of students in digital learning in different states:
+
+a. Engagement index by states:
+
+This visualization employs a bar graph to compare the average engagement index of students, based on at least one daily product page-load event, across different states. The bar graph is particularly effective for this purpose as it clearly delineates differences between states, allowing for direct and straightforward comparisons. However, it should be noted that districts 1039 and 1131 are excluded from this analysis due to the missing information of state name and other relevant data in the district files.
+
+```{r engagement index by state, simple-plot, echo=FALSE}
+## Mean engagement index by the states:
+# Step 1: Calculate mean engagement index by State
+final_merge1 <- final_merge %>% drop_na(`state`) # as the 1039 and 1131 includes NaN value in terms of column in districts file,  this analysis will ignore and drop NA for the state 
+
+avg_engagement_by_state <- final_merge1 %>%
+  group_by(state) %>%
+  summarise(mean_engagement_index = mean(engagement_index, na.rm = TRUE)) %>%
+  arrange(desc(mean_engagement_index)) # Arrange by descending order of mean engagement index
+
+# Step 2: Plot the Bar Graph
+ggplot(avg_engagement_by_state, aes(x = reorder(state, -mean_engagement_index), y = mean_engagement_index, fill = state)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme_minimal() +
+  labs(x = "State", y = "Average Engagement Index", title = "Average engagement index by States in 2020") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Improve readability of state names
+```
+
+b. Engagement index by state monthly:
+
+This following visualization follows a line graph format. This graph effectively captures the trend in student engagement indices across various states throughout 2020. The use of a line graph is particularly advantageous for this analysis as it highlights temporal changes and facilitates the identification of patterns over time, making it ideal for observing trends in data across a specified period.
+
+```{r monthly engagement index by state, simple-plot, echo=FALSE}
+# Mean engagement index for state monthly
+# Step 1: Calculate the mean of engagement index for 3 states (Illinois, Connecticut, Missouri)
+mean_month_state <- final_merge1 %>%
+  mutate(month = format(as.Date(time), "%Y-%m")) %>% # Ensure the 'month' column is ordered properly for plotting
+  group_by(state, month) %>%
+  summarise(average_engagement_index = mean(engagement_index, na.rm = TRUE), .groups = 'drop')
+
+# Step 2: plot a line graph
+ggplot(mean_month_state, aes(x = month, y = average_engagement_index, group = state, color = state)) +
+  geom_line() +  # Draw lines
+  theme_minimal() +
+  labs(x = "Month", y = "Average Engagement Index", title = "Monthly average engagement index by states") +
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6),
+        legend.title = element_blank()) +  # Adjust text angle for readability
+  guides(color = guide_legend(override.aes = list(alpha = 1))) # Ensure legend is readable
+```
+
+## 2.4 Engement index with provider in digital learning by states:
+
+To investigate the relationship between student engagement and digital tool providers, we will use a series of three bar graphs. These graphs will clearly compare student engagement across the top 10 providers in three states, effectively highlighting differences.
+
+```{r mean engagement by top provider, simple-plot, echo=FALSE}
+## mean engagement index for the top provider in each state:
+library(dplyr)
+library(ggplot2)
+
+top_providers <- final_merge1 %>%
+  group_by(`Provider/Company Name`) %>%
+  summarise(Count = n()) %>%
+  top_n(10, Count) %>%
+  pull(`Provider/Company Name`)
+
+# Assuming the previous steps to identify top providers and calculate mean engagement index
+
+state_provider_engagement <- final_merge1 %>%
+  filter(`Provider/Company Name` %in% top_providers) %>%
+  group_by(state, `Provider/Company Name`) %>%
+  summarise(MeanEngagementIndex = mean(engagement_index, na.rm = TRUE)) %>%
+  ungroup()
+
+# Updated plot code to rotate the graph and use facet_wrap
+ggplot(state_provider_engagement, aes(x = MeanEngagementIndex, y = reorder(`Provider/Company Name`, MeanEngagementIndex), fill = state)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Engagement Index by Provider for Top 10 Providers",
+       x = "Mean Engagement Index",
+       y = "Provider/ Company Name") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1), legend.position = "bottom") +
+  facet_wrap(~state, scales = "free_y")  # Use facet_wrap to separate by state
+ 
+```
+
+\newpage
+
+## 3. Findings:
+
+3.1. Products/ Tools most used across states:
+
+As the COVID-19 pandemic forced schools to shift from face-to-face to online teaching, a significant rise in the use of digital tools occurred within the educational sector. During this time, a variety of digital platforms became essential for adapting to the new demands of remote education. The analysis of the top 10 products and providers clearly shows Google's dominance in the online learning landscape. According to the data, Google not only features prominently but also accounts for seven out of the top ten most utilized products across schools in the U.S. This significant presence underscores its leading role in equipping students with necessary digital resources.
+
+However, it's worth noting that Google's strong showing in the top used online tools is not entirely surprising. Given its pre-pandemic prevalence in both personal and professional spheres, its continued prominence in the educational sector during the crisis was expected, reflecting its already established base rather than a sudden surge in utility or popularity.
+
+
+3.2. Student engagement and digital learning access:
+
+The analysis of digital learning trends in 2020 showcases a marked seasonality in student engagement with educational platforms. The engagement index and the percentage of students accessing digital tools followed a similar downtrend during the summer months (practically from June to August), indicating a decrease in digital learning activities during the school break. However, a notable difference emerges in the timing of peak activities; while the highest percentage of students accessing the tools occurred in January, the engagement index reached its peak later in the year, in August. This disparity highlights a divergence in how frequently students log onto digital platforms versus how intensively they engage with content, suggesting that while fewer students may initiate sessions at certain times, those who do are more actively involved.
+
+
+3.3. Engagement of students in digital learning in different states:
+
+To analyze student engagement across different regions in the US, this study compares the engagement index among students in Illinois, Connecticut, and Missouri. The data reveal that students in Illinois engage more intensively with digital learning content, as evidenced by an engagement index significantly higher than that observed in the other two states. Additionally, the trend in the engagement index across these states mirrors the overall pattern observed in the broader dataset of investigated districts, with a notable decline during the summer break. This similarity suggests that student engagement consistently decreases during this period across various states.
+
+
+3.4. Engement index with provider in digital learning by states:
+
+Google emerges as the dominant digital platform provider across Illinois, Connecticut, and Missouri, consistently leading in engagement. Specifically, in Illinois, Google not only leads but does so by a significant margin, with an average daily page load event nearing 1500, underscoring its popularity. Although McGraw-Hill ranks far behind Google, it holds the position of the second most utilized provider in Illinois.
+
+In conclusion, Google's dominance in the digital learning space is evident across the studied states, with Illinois showcasing particularly high engagement levels. Despite a considerable gap, McGraw-Hill remains a significant secondary provider within Illinois.
+
